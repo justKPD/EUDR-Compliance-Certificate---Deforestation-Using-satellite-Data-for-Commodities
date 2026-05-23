@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EUDR Compliance Intelligence</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet Draw CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+
+  <style>
+    /* ── Reset & base ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0f1117; color: #e2e8f0; }
+
+    /* ── Layout ───────────────────────────────────────────────────────────── */
+    #app { display: flex; height: 100vh; overflow: hidden; }
+
+    /* ── Sidebar ──────────────────────────────────────────────────────────── */
+    #sidebar {
+      width: 400px;
+      min-width: 400px;
+      background: #161b27;
+      border-right: 1px solid #2d3548;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #sidebar-header {
+      padding: 20px 20px 14px;
+      border-bottom: 1px solid #2d3548;
+      background: #1a2035;
+    }
+
+    .logo-row { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+    .logo-icon { width: 36px; height: 36px; }
+    .logo-text { font-size: 15px; font-weight: 700; color: #60a5fa; letter-spacing: 0.3px; }
+    .logo-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+    #sidebar-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+    /* ── Section card ─────────────────────────────────────────────────────── */
+    .section-card {
+      background: #1e2640;
+      border: 1px solid #2d3548;
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #94a3b8;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .section-title .dot {
+      width: 6px; height: 6px; border-radius: 50%; background: #3b82f6;
+    }
+
+    /* ── Commodity selector ───────────────────────────────────────────────── */
+    .commodity-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .commodity-btn {
+      padding: 8px 6px;
+      border-radius: 8px;
+      border: 1.5px solid #2d3548;
+      background: #111827;
+      color: #94a3b8;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      justify-content: center;
+    }
+    .commodity-btn:hover { border-color: #3b82f6; color: #e2e8f0; background: #1e3a5f; }
+    .commodity-btn.selected { border-color: #3b82f6; background: #1e3a5f; color: #60a5fa; font-weight: 600; }
+    .commodity-btn .icon { font-size: 14px; }
+
+    /* ── Polygon instructions ─────────────────────────────────────────────── */
+    .instruction-box {
+      background: #111827;
+      border: 1px solid #2d3548;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+    .instruction-box b { color: #60a5fa; }
+    .coords-display {
+      background: #0f1117;
+      border: 1px solid #1e3a5f;
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-top: 8px;
+      font-size: 11px;
+      font-family: monospace;
+      color: #7dd3fc;
+      min-height: 38px;
+      max-height: 80px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .coords-display.empty { color: #334155; font-style: italic; }
+
+    /* ── Options ──────────────────────────────────────────────────────────── */
+    .option-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 0;
+      font-size: 13px;
+      color: #cbd5e1;
+    }
+    .option-row:not(:last-child) { border-bottom: 1px solid #1e2640; }
+    .toggle {
+      position: relative;
+      width: 36px; height: 20px;
+      cursor: pointer;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: #374151;
+      border-radius: 20px;
+      transition: background 0.2s;
+    }
+    .toggle-thumb {
+      position: absolute;
+      width: 14px; height: 14px;
+      background: #fff;
+      border-radius: 50%;
+      top: 3px; left: 3px;
+      transition: transform 0.2s;
+    }
+    .toggle input:checked + .toggle-track { background: #3b82f6; }
+    .toggle input:checked ~ .toggle-thumb { transform: translateX(16px); }
+
+    /* ── Run button ───────────────────────────────────────────────────────── */
+    #run-btn {
+      width: 100%;
+      padding: 13px;
+      border-radius: 10px;
+      border: none;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    #run-btn:hover:not(:disabled) { background: linear-gradient(135deg, #60a5fa, #2563eb); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(59,130,246,0.4); }
+    #run-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+    #run-btn .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    #run-btn.loading .spinner { display: block; }
+    #run-btn.loading .btn-text { display: none; }
+
+    .clear-btn {
+      width: 100%;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #2d3548;
+      background: transparent;
+      color: #64748b;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-top: 6px;
+    }
+    .clear-btn:hover { border-color: #ef4444; color: #ef4444; }
+
+    /* ── Results panel ────────────────────────────────────────────────────── */
+    #results-panel { display: none; }
+
+    /* Traffic light badge */
+    .compliance-badge {
+      padding: 10px 16px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .compliance-badge.GREEN  { background: #052e16; border: 1.5px solid #16a34a; }
+    .compliance-badge.YELLOW { background: #422006; border: 1.5px solid #d97706; }
+    .compliance-badge.RED    { background: #2d0a0a; border: 1.5px solid #ef4444; }
+
+    .traffic-light { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; }
+    .GREEN  .traffic-light { background: #22c55e; box-shadow: 0 0 10px #22c55e80; }
+    .YELLOW .traffic-light { background: #f59e0b; box-shadow: 0 0 10px #f59e0b80; }
+    .RED    .traffic-light { background: #ef4444; box-shadow: 0 0 10px #ef444480; }
+
+    .badge-content .status-label {
+      font-size: 13px; font-weight: 700; letter-spacing: 0.5px;
+    }
+    .GREEN  .status-label { color: #4ade80; }
+    .YELLOW .status-label { color: #fbbf24; }
+    .RED    .status-label { color: #f87171; }
+    .badge-content .status-sub { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+
+    /* Metric grid */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+      margin-bottom: 10px;
+    }
+    .metric-card {
+      background: #111827;
+      border: 1px solid #1e2640;
+      border-radius: 8px;
+      padding: 9px 10px;
+    }
+    .metric-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+    .metric-value { font-size: 15px; font-weight: 700; color: #e2e8f0; }
+    .metric-unit  { font-size: 10px; color: #64748b; }
+
+    /* Driver badge */
+    .driver-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .driver-badge.eudr   { background: #2d0a0a; border: 1px solid #ef4444; color: #f87171; }
+    .driver-badge.natural { background: #1a2e0a; border: 1px solid #65a30d; color: #a3e635; }
+    .driver-badge.unknown { background: #1a1f2e; border: 1px solid #475569; color: #94a3b8; }
+
+    /* Forest bar */
+    .forest-bar-wrap { margin-bottom: 10px; }
+    .forest-bar-label { font-size: 11px; color: #64748b; margin-bottom: 4px; display: flex; justify-content: space-between; }
+    .forest-bar-bg { height: 6px; background: #1e2640; border-radius: 3px; overflow: hidden; }
+    .forest-bar-fill { height: 100%; background: #22c55e; border-radius: 3px; transition: width 0.6s ease; }
+    .forest-bar-fill.low { background: #f59e0b; }
+
+    /* Reason text */
+    .reason-text {
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.55;
+      background: #111827;
+      border: 1px solid #1e2640;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+    .reason-text b { color: #cbd5e1; }
+
+    /* Council tabs */
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #2d3548;
+      padding-bottom: 6px;
+    }
+    .tab {
+      padding: 5px 10px;
+      border-radius: 6px 6px 0 0;
+      border: none;
+      background: transparent;
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tab:hover { color: #94a3b8; }
+    .tab.active { background: #1e3a5f; color: #60a5fa; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .council-text {
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.6;
+      background: #111827;
+      border: 1px solid #1e2640;
+      border-radius: 8px;
+      padding: 10px 12px;
+      max-height: 130px;
+      overflow-y: auto;
+    }
+
+    /* PDF download */
+    #pdf-btn {
+      display: none;
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1.5px solid #3b82f6;
+      background: transparent;
+      color: #60a5fa;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-top: 8px;
+      text-decoration: none;
+      text-align: center;
+    }
+    #pdf-btn:hover { background: #1e3a5f; }
+
+    /* Error box */
+    .error-box {
+      background: #2d0a0a;
+      border: 1px solid #ef4444;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #f87171;
+      line-height: 1.5;
+    }
+
+    /* Progress bar */
+    #progress-wrap { display: none; }
+    .progress-label { font-size: 11px; color: #64748b; margin-bottom: 5px; }
+    .progress-bg { height: 4px; background: #1e2640; border-radius: 2px; overflow: hidden; }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #60a5fa);
+      border-radius: 2px;
+      transition: width 0.4s ease;
+      animation: pulse-bar 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse-bar { 0%,100%{opacity:1} 50%{opacity:0.65} }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .step-label {
+      font-size: 11px;
+      color: #475569;
+      margin-top: 4px;
+      min-height: 16px;
+    }
+    .step-label span { color: #60a5fa; font-weight: 600; }
+
+    /* ── Map ──────────────────────────────────────────────────────────────── */
+    #map-container { flex: 1; position: relative; }
+    #map { width: 100%; height: 100%; }
+
+    /* Map overlay badge */
+    #map-status {
+      position: absolute;
+      top: 12px; left: 50%; transform: translateX(-50%);
+      background: rgba(22, 27, 39, 0.92);
+      backdrop-filter: blur(8px);
+      border: 1px solid #2d3548;
+      border-radius: 20px;
+      padding: 6px 16px;
+      font-size: 12px;
+      color: #94a3b8;
+      z-index: 1000;
+      white-space: nowrap;
+      pointer-events: none;
+      display: flex; align-items: center; gap: 6px;
+    }
+    #map-status .dot { width: 7px; height: 7px; border-radius: 50%; background: #3b82f6; }
+    #map-status.active .dot { background: #22c55e; animation: blink 1s infinite; }
+    #map-status.error .dot { background: #ef4444; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* Coordinate input panel at bottom of map */
+    #coord-input-panel {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(22, 27, 39, 0.95);
+      backdrop-filter: blur(8px);
+      border: 1px solid #2d3548;
+      border-radius: 12px;
+      padding: 12px 16px;
+      z-index: 1000;
+      width: 520px;
+      max-width: calc(100vw - 440px);
+    }
+    #coord-input-panel .panel-title {
+      font-size: 11px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 8px;
+    }
+    #coord-input-row { display: flex; gap: 8px; }
+    #coord-textarea {
+      flex: 1;
+      background: #0f1117;
+      border: 1px solid #2d3548;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 12px;
+      font-family: monospace;
+      color: #7dd3fc;
+      resize: none;
+      height: 52px;
+      outline: none;
+    }
+    #coord-textarea:focus { border-color: #3b82f6; }
+    #paste-btn {
+      padding: 0 14px;
+      border-radius: 8px;
+      border: 1.5px solid #3b82f6;
+      background: transparent;
+      color: #60a5fa;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    #paste-btn:hover { background: #1e3a5f; }
+
+    /* ── Scrollbar ────────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2d3548; border-radius: 3px; }
+
+    /* ── Responsive ───────────────────────────────────────────────────────── */
+    @media (max-width: 700px) {
+      #sidebar { width: 100%; min-width: 0; position: absolute; z-index: 2000; bottom: 0; height: 60vh; border-radius: 16px 16px 0 0; }
+      #map-container { height: 40vh; }
+      #coord-input-panel { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Sidebar ───────────────────────────────────────────────────────── -->
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo-row">
+        <svg class="logo-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="18" cy="18" r="18" fill="#1e3a5f"/>
+          <path d="M18 8 L22 16 L30 17 L24 23 L26 31 L18 27 L10 31 L12 23 L6 17 L14 16 Z" fill="#3b82f6" opacity="0.9"/>
+          <circle cx="18" cy="18" r="4" fill="#60a5fa"/>
+        </svg>
+        <div>
+          <div class="logo-text">EUDR Intelligence</div>
+          <div class="logo-sub">EU Deforestation Regulation · Compliance Officer Portal</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="sidebar-body">
+
+      <!-- Step 1: Commodity -->
+      <div class="section-card">
+        <div class="section-title"><span class="dot"></span>Step 1 — Select Commodity</div>
+        <div class="commodity-grid">
+          <button class="commodity-btn" data-value="cocoa" onclick="selectCommodity(this)">
+            <span class="icon">🍫</span> Cocoa
+          </button>
+          <button class="commodity-btn" data-value="coffee" onclick="selectCommodity(this)">
+            <span class="icon">☕</span> Coffee
+          </button>
+          <button class="commodity-btn" data-value="palm_oil" onclick="selectCommodity(this)">
+            <span class="icon">🌴</span> Palm Oil
+          </button>
+          <button class="commodity-btn" data-value="soy" onclick="selectCommodity(this)">
+            <span class="icon">🌾</span> Soy
+          </button>
+          <button class="commodity-btn" data-value="cattle" onclick="selectCommodity(this)">
+            <span class="icon">🐄</span> Cattle
+          </button>
+          <button class="commodity-btn" data-value="wood" onclick="selectCommodity(this)">
+            <span class="icon">🪵</span> Wood
+          </button>
+          <button class="commodity-btn" data-value="rubber" onclick="selectCommodity(this)">
+            <span class="icon">⚪</span> Rubber
+          </button>
+          <button class="commodity-btn" data-value="other" onclick="selectCommodity(this)">
+            <span class="icon">📦</span> Other
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2: Polygon -->
+      <div class="section-card">
+        <div class="section-title"><span class="dot"></span>Step 2 — Define Production Plot</div>
+        <div class="instruction-box">
+          <b>Draw on map</b> — use the polygon tool (top-left of map) to trace the farm boundary,
+          <b>or paste coordinates</b> in the box at the bottom of the map.
+          <div class="coords-display empty" id="coords-display">No polygon drawn yet</div>
+        </div>
+      </div>
+
+      <!-- Options -->
+      <div class="section-card">
+        <div class="section-title"><span class="dot"></span>Analysis Options</div>
+        <div class="option-row">
+          <span>Generate PDF report</span>
+          <label class="toggle">
+            <input type="checkbox" id="opt-pdf" checked />
+            <span class="toggle-track"></span>
+            <span class="toggle-thumb"></span>
+          </label>
+        </div>
+        <div class="option-row">
+          <span>5 km buffer zone check</span>
+          <label class="toggle">
+            <input type="checkbox" id="opt-buffer" checked />
+            <span class="toggle-track"></span>
+            <span class="toggle-thumb"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <div id="progress-wrap">
+        <div class="progress-label">Running analysis…</div>
+        <div class="progress-bg"><div class="progress-fill" id="progress-fill" style="width:5%"></div></div>
+        <div class="step-label" id="step-label">Initialising…</div>
+      </div>
+
+      <!-- Run / Clear -->
+      <button id="run-btn" onclick="runAnalysis()">
+        <div class="spinner"></div>
+        <span class="btn-text">▶ Run EUDR Analysis</span>
+      </button>
+      <button class="clear-btn" onclick="clearAll()">Clear polygon &amp; results</button>
+
+      <!-- Results panel -->
+      <div id="results-panel">
+
+        <!-- Compliance badge -->
+        <div id="compliance-badge" class="compliance-badge">
+          <div class="traffic-light"></div>
+          <div class="badge-content">
+            <div class="status-label" id="status-label"></div>
+            <div class="status-sub" id="status-sub"></div>
+          </div>
+        </div>
+
+        <!-- Determination confidence banner -->
+        <div id="det-conf-wrap" style="margin-bottom:10px;display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+            <span style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.6px">
+              Determination Confidence
+            </span>
+            <span id="det-conf-label" style="font-size:12px;font-weight:700"></span>
+          </div>
+          <div style="height:8px;background:#1e2640;border-radius:4px;overflow:hidden">
+            <div id="det-conf-bar" style="height:100%;border-radius:4px;transition:width 0.7s ease;width:0%"></div>
+          </div>
+          <div style="font-size:10px;color:#475569;margin-top:4px" id="det-conf-note"></div>
+        </div>
+
+        <!-- Metrics grid -->
+        <div class="metric-grid">
+          <div class="metric-card">
+            <div class="metric-label">Forest Loss</div>
+            <div class="metric-value" id="m-change">—</div>
+            <div class="metric-unit">% of polygon (EUDR threshold: 5%)</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Area Affected</div>
+            <div class="metric-value" id="m-area">—</div>
+            <div class="metric-unit">hectares</div>
+          </div>
+          <div class="metric-card" title="Mean probability of vegetation change across ALL pixels (not a confidence score). For intact forest with no NDVI change, this naturally sits at ~15-18% due to the physics prior baseline. What matters is the Forest Loss % above.">
+            <div class="metric-label">Vegetation Change Signal ⓘ</div>
+            <div class="metric-value" id="m-conf">—</div>
+            <div class="metric-unit">mean pixel probability</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Buffer Zone (5 km)</div>
+            <div class="metric-value" id="m-buf">—</div>
+            <div class="metric-unit">% change (leakage risk)</div>
+          </div>
+        </div>
+
+        <!-- Hansen post-EUDR confirmation -->
+        <div id="hansen-confirm-wrap" style="display:none;margin-bottom:8px">
+          <div style="font-size:11px;color:#64748b;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Hansen GFC 2024 — Confirmed Post-2020 Loss</div>
+          <div id="hansen-confirm-badge" style="padding:6px 10px;border-radius:8px;font-size:12px;font-weight:600"></div>
+        </div>
+
+        <!-- WRI Driver badge -->
+        <div id="driver-row"></div>
+
+        <!-- Forest baseline bar -->
+        <div class="forest-bar-wrap" id="forest-bar-wrap" style="display:none">
+          <div class="forest-bar-label">
+            <span>Baseline Forest Cover (Hansen GFC 2024)</span>
+            <span id="canopy-pct-label">—</span>
+          </div>
+          <div class="forest-bar-bg">
+            <div class="forest-bar-fill" id="canopy-bar" style="width:0%"></div>
+          </div>
+        </div>
+
+        <!-- Compliance reason -->
+        <div class="reason-text" id="reason-text"></div>
+
+        <!-- Council tabs -->
+        <div class="section-title" style="margin-top:4px"><span class="dot"></span>Council Analysis</div>
+        <div class="tab-bar">
+          <button class="tab active" onclick="switchTab(this,'tab-technical')">Technical</button>
+          <button class="tab" onclick="switchTab(this,'tab-legal')">Legal</button>
+          <button class="tab" onclick="switchTab(this,'tab-narrative')">Due Diligence</button>
+        </div>
+        <div class="tab-content active" id="tab-technical">
+          <div class="council-text" id="council-technical">—</div>
+        </div>
+        <div class="tab-content" id="tab-legal">
+          <div class="council-text" id="council-legal">—</div>
+        </div>
+        <div class="tab-content" id="tab-narrative">
+          <div class="council-text" id="council-narrative">—</div>
+        </div>
+
+        <!-- Evidence hash -->
+        <div style="font-size:11px;color:#334155;margin-top:8px;font-family:monospace">
+          Evidence hash: <span id="evidence-hash" style="color:#475569">—</span>
+        </div>
+
+        <!-- PDF download -->
+        <a id="pdf-btn" href="#" target="_blank">⬇ Download Due Diligence PDF</a>
+      </div>
+
+      <!-- Error panel -->
+      <div id="error-panel" style="display:none">
+        <div class="error-box" id="error-text"></div>
+      </div>
+
+    </div><!-- /sidebar-body -->
+  </div><!-- /sidebar -->
+
+  <!-- ── Map ───────────────────────────────────────────────────────────── -->
+  <div id="map-container">
+    <div id="map-status"><span class="dot"></span><span id="map-status-text">Draw a polygon to begin</span></div>
+    <div id="map"></div>
+
+    <!-- Manual coordinate input panel -->
+    <div id="coord-input-panel">
+      <div class="panel-title">Or paste / type GeoJSON coordinates (lon,lat pairs)</div>
+      <div id="coord-input-row">
+        <textarea id="coord-textarea"
+          placeholder='[[-5.567,7.234],[-5.567,7.244],[-5.557,7.244],[-5.557,7.234],[-5.567,7.234]]'
+        ></textarea>
+        <button id="paste-btn" onclick="loadCoordsFromTextarea()">Load on Map</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Leaflet Draw JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let currentPolygonCoords = null;  // [[lon,lat], ...] ring
+let selectedCommodity    = null;
+let drawnItems           = null;
+let analysisInProgress   = false;
+
+// ── Map initialisation ────────────────────────────────────────────────────────
+const map = L.map('map', {
+  center: [20, 10],
+  zoom: 3,
+  zoomControl: true,
+});
+
+// Esri World Imagery (satellite)
+L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  { attribution: 'Esri, Maxar, Earthstar Geographics', maxZoom: 19 }
+).addTo(map);
+
+// Labels overlay
+L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+  { attribution: '', maxZoom: 19, opacity: 0.7 }
+).addTo(map);
+
+// Draw controls
+drawnItems = new L.FeatureGroup();
+map.addLayer(drawnItems);
+
+const drawControl = new L.Control.Draw({
+  draw: {
+    polygon: {
+      allowIntersection: false,
+      shapeOptions: {
+        color: '#3b82f6',
+        fillColor: '#3b82f6',
+        fillOpacity: 0.15,
+        weight: 2,
+      },
+    },
+    rectangle: {
+      shapeOptions: { color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.15, weight: 2 }
+    },
+    polyline: false, circle: false, circlemarker: false, marker: false,
+  },
+  edit: { featureGroup: drawnItems, remove: true },
+});
+map.addControl(drawControl);
+
+// Handle draw complete
+map.on(L.Draw.Event.CREATED, function(e) {
+  drawnItems.clearLayers();
+  drawnItems.addLayer(e.layer);
+  const latlngs = e.layer.getLatLngs()[0];
+  // Convert leaflet LatLng (lat,lon) → GeoJSON [lon,lat]
+  let coords = latlngs.map(ll => [ll.lng, ll.lat]);
+  // Close the ring
+  if (coords.length > 0 &&
+      (coords[0][0] !== coords[coords.length-1][0] || coords[0][1] !== coords[coords.length-1][1])) {
+    coords.push(coords[0]);
+  }
+  setPolygon(coords);
+});
+
+map.on(L.Draw.Event.DELETED, function() {
+  currentPolygonCoords = null;
+  updateCoordsDisplay();
+  setMapStatus('Draw a polygon to begin', false, false);
+});
+
+// ── Polygon helpers ───────────────────────────────────────────────────────────
+function setPolygon(coords) {
+  currentPolygonCoords = coords;
+  updateCoordsDisplay();
+  const pointCount = coords.length - 1; // exclude closing point
+  setMapStatus(`Polygon ready — ${pointCount} vertices. Select a commodity and run analysis.`, true, false);
+}
+
+function updateCoordsDisplay() {
+  const el = document.getElementById('coords-display');
+  if (!currentPolygonCoords) {
+    el.textContent = 'No polygon drawn yet';
+    el.classList.add('empty');
+  } else {
+    const preview = currentPolygonCoords.map(c => `[${c[0].toFixed(4)}, ${c[1].toFixed(4)}]`).join(', ');
+    el.textContent = preview;
+    el.classList.remove('empty');
+  }
+}
+
+function setMapStatus(text, active, error) {
+  const el = document.getElementById('map-status');
+  const textEl = document.getElementById('map-status-text');
+  el.classList.toggle('active', active);
+  el.classList.toggle('error', error);
+  textEl.textContent = text;
+}
+
+// Load polygon from manual textarea input
+function loadCoordsFromTextarea() {
+  const raw = document.getElementById('coord-textarea').value.trim();
+  if (!raw) return;
+  try {
+    let parsed = JSON.parse(raw);
+    // Accept [[lon,lat],...] or {"type":"Polygon","coordinates":[...]} or {"coordinates":[...]}
+    if (parsed && parsed.coordinates) parsed = parsed.coordinates[0];
+    if (!Array.isArray(parsed) || parsed.length < 3) throw new Error('Need at least 3 points');
+    // Auto-close ring
+    if (parsed[0][0] !== parsed[parsed.length-1][0] || parsed[0][1] !== parsed[parsed.length-1][1]) {
+      parsed.push(parsed[0]);
+    }
+    // Draw on map
+    drawnItems.clearLayers();
+    const latlngs = parsed.map(c => [c[1], c[0]]);
+    const poly = L.polygon(latlngs, { color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.15, weight: 2 });
+    drawnItems.addLayer(poly);
+    map.fitBounds(poly.getBounds(), { padding: [40, 40] });
+    setPolygon(parsed);
+  } catch(e) {
+    alert('Invalid coordinates format. Expected JSON array of [lon, lat] pairs.\n\nExample:\n[[-5.567,7.234],[-5.557,7.244],[-5.557,7.234],[-5.567,7.234]]');
+  }
+}
+
+// ── Commodity selection ───────────────────────────────────────────────────────
+function selectCommodity(btn) {
+  document.querySelectorAll('.commodity-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedCommodity = btn.dataset.value;
+}
+
+// ── Analysis ──────────────────────────────────────────────────────────────────
+async function runAnalysis() {
+  if (analysisInProgress) return;
+
+  // Validation
+  if (!currentPolygonCoords) {
+    alert('Please draw a polygon on the map first.');
+    return;
+  }
+  if (!selectedCommodity) {
+    alert('Please select a commodity before running analysis.');
+    return;
+  }
+
+  analysisInProgress = true;
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+
+  document.getElementById('results-panel').style.display = 'none';
+  document.getElementById('error-panel').style.display  = 'none';
+  document.getElementById('progress-wrap').style.display = 'block';
+
+  const steps = [
+    { pct: 8,  label: '<span>Step 1/6</span> Fetching Sentinel-2 satellite imagery…' },
+    { pct: 20, label: '<span>Step 1/6</span> Fetching SAR + Hansen GFC 2024 forest baseline…' },
+    { pct: 32, label: '<span>Step 1/6</span> Fetching WRI GDM deforestation drivers…' },
+    { pct: 45, label: '<span>Step 2/6</span> Preprocessing NDVI + SAR fusion…' },
+    { pct: 58, label: '<span>Step 3/6</span> Running Prithvi-100M change detection…' },
+    { pct: 68, label: '<span>Step 4/6</span> Analysing 5 km buffer zone…' },
+    { pct: 78, label: '<span>Step 5/6</span> Computing EUDR Article 3 compliance…' },
+    { pct: 88, label: '<span>Step 6/6</span> Council deliberation (Gemma)…' },
+    { pct: 94, label: 'Generating PDF Due Diligence Statement…' },
+  ];
+
+  let stepIdx = 0;
+  const stepTimer = setInterval(() => {
+    if (stepIdx < steps.length) {
+      setProgress(steps[stepIdx].pct, steps[stepIdx].label);
+      stepIdx++;
+    }
+  }, 3000);
+
+  setProgress(5, 'Initialising…');
+  setMapStatus('Analysis in progress…', true, false);
+
+  try {
+    const generatePdf = document.getElementById('opt-pdf').checked;
+    const analyzeBuffer = document.getElementById('opt-buffer').checked;
+
+    const payload = {
+      polygon: {
+        type: 'Polygon',
+        coordinates: [currentPolygonCoords],
+      },
+      generate_pdf: generatePdf,
+      commodity: selectedCommodity,
+    };
+
+    const resp = await fetch('/api/v1/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    clearInterval(stepTimer);
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+      throw new Error(err.detail || `Server error ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    setProgress(100, 'Analysis complete.');
+    setTimeout(() => {
+      document.getElementById('progress-wrap').style.display = 'none';
+      showResults(data);
+    }, 600);
+
+  } catch (err) {
+    clearInterval(stepTimer);
+    document.getElementById('progress-wrap').style.display = 'none';
+    showError(err.message);
+    setMapStatus('Analysis failed — see error below', false, true);
+  } finally {
+    analysisInProgress = false;
+    btn.disabled = false;
+    btn.classList.remove('loading');
+  }
+}
+
+function setProgress(pct, labelHtml) {
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('step-label').innerHTML = labelHtml;
+}
+
+// ── Render results ────────────────────────────────────────────────────────────
+function showResults(d) {
+  const color = d.color; // GREEN / YELLOW / RED
+
+  // Compliance badge
+  const badge = document.getElementById('compliance-badge');
+  badge.className = 'compliance-badge ' + color;
+  document.getElementById('status-label').textContent = d.compliance_status;
+  document.getElementById('status-sub').textContent =
+    color === 'GREEN'  ? 'EUDR Article 3 — Compliant' :
+    color === 'YELLOW' ? 'EUDR Article 9 — Enhanced due diligence required' :
+                         'EUDR Article 3 — Non-compliant: suspend EU market placement';
+
+  // Determination confidence banner
+  if (d.determination_confidence != null) {
+    const dc = d.determination_confidence;
+    document.getElementById('det-conf-wrap').style.display = 'block';
+    document.getElementById('det-conf-bar').style.width = dc + '%';
+    const dcColor = dc >= 75 ? '#22c55e' : dc >= 45 ? '#f59e0b' : '#ef4444';
+    document.getElementById('det-conf-bar').style.background = dcColor;
+    const dcLabel = dc >= 75 ? 'High' : dc >= 45 ? 'Medium' : 'Low';
+    document.getElementById('det-conf-label').style.color = dcColor;
+    document.getElementById('det-conf-label').textContent = dc.toFixed(1) + '%  (' + dcLabel + ')';
+    const dcNote =
+      dc >= 75 ? 'The system is highly certain about this determination.' :
+      dc >= 45 ? 'Borderline case — result is close to the 5% EUDR threshold. Cross-check with source documents.' :
+                 'Low certainty — very close to threshold or conflicting signals. Manual review recommended.';
+    document.getElementById('det-conf-note').textContent = dcNote;
+  }
+
+  // Core metrics
+  document.getElementById('m-change').textContent = (d.change_percentage != null ? d.change_percentage.toFixed(2) + '%' : '—');
+  document.getElementById('m-area').textContent   = (d.loss_area_hectares != null ? d.loss_area_hectares.toFixed(2) : '—');
+  document.getElementById('m-conf').textContent   = (d.change_probability != null ? (d.change_probability * 100).toFixed(1) + '%' : '—');
+  document.getElementById('m-buf').textContent    = (d.buffer_change_percentage != null ? d.buffer_change_percentage.toFixed(2) + '%' : 'N/A');
+
+  // Hansen post-EUDR loss confirmation
+  if (d.hansen_post_eudr_loss_pct != null) {
+    document.getElementById('hansen-confirm-wrap').style.display = 'block';
+    const hLoss = d.hansen_post_eudr_loss_pct;
+    const hBadge = document.getElementById('hansen-confirm-badge');
+    if (hLoss > 5) {
+      hBadge.style.cssText = 'padding:6px 10px;border-radius:8px;font-size:12px;font-weight:600;background:#2d0a0a;border:1px solid #ef4444;color:#f87171';
+      hBadge.textContent = '⚠ ' + hLoss.toFixed(2) + '% confirmed deforestation (lossyear 2021–2024) — corroborates RED determination';
+    } else if (hLoss > 0) {
+      hBadge.style.cssText = 'padding:6px 10px;border-radius:8px;font-size:12px;font-weight:600;background:#422006;border:1px solid #d97706;color:#fbbf24';
+      hBadge.textContent = '◉ ' + hLoss.toFixed(2) + '% minor Hansen loss detected (below 5% threshold)';
+    } else {
+      hBadge.style.cssText = 'padding:6px 10px;border-radius:8px;font-size:12px;font-weight:600;background:#052e16;border:1px solid #16a34a;color:#4ade80';
+      hBadge.textContent = '✓ No confirmed post-2020 deforestation in Hansen GFC 2024';
+    }
+  }
+
+  // WRI Driver badge
+  const driverRow = document.getElementById('driver-row');
+  if (d.wri_driver_label && d.wri_driver_label !== 'Unknown') {
+    const cls = d.is_eudr_driver === true ? 'eudr'
+              : d.is_eudr_driver === false ? 'natural'
+              : 'unknown';
+    const icon = d.is_eudr_driver === true ? '⚠' : d.is_eudr_driver === false ? '✓' : '?';
+    const tag  = d.is_eudr_driver === true ? 'EUDR-Regulated Driver'
+               : d.is_eudr_driver === false ? 'Natural Disturbance — EUDR Exempt'
+               : 'Driver Unknown';
+    driverRow.innerHTML = `
+      <div class="driver-badge ${cls}">
+        <span>${icon}</span>
+        <span>${d.wri_driver_label} (class ${d.wri_driver_class})</span>
+        <span style="opacity:0.6">·</span>
+        <span>${tag}</span>
+      </div>`;
+  } else {
+    driverRow.innerHTML = '';
+  }
+
+  // Forest baseline bar
+  const canopyPct = d.mean_canopy_pct;
+  if (canopyPct != null) {
+    document.getElementById('forest-bar-wrap').style.display = 'block';
+    document.getElementById('canopy-pct-label').textContent = canopyPct.toFixed(1) + '%';
+    const bar = document.getElementById('canopy-bar');
+    bar.style.width = Math.min(100, canopyPct) + '%';
+    bar.classList.toggle('low', canopyPct < 10);
+    const forestLabel = d.is_eudr_forest === true ? ' (EUDR forest confirmed)' :
+                        d.is_eudr_forest === false ? ' (below EUDR threshold ≥10%)' : '';
+    document.getElementById('canopy-pct-label').textContent = canopyPct.toFixed(1) + '%' + forestLabel;
+  } else {
+    document.getElementById('forest-bar-wrap').style.display = 'none';
+  }
+
+  // Reason
+  document.getElementById('reason-text').textContent = d.reason || '—';
+
+  // Council
+  document.getElementById('council-technical').textContent = d.technical_note || 'Council analysis not available.';
+  document.getElementById('council-legal').textContent     = d.legal_note     || 'Council analysis not available.';
+  document.getElementById('council-narrative').textContent = d.council_narrative || 'Council analysis not available.';
+
+  // Evidence hash
+  document.getElementById('evidence-hash').textContent = d.evidence_hash || '—';
+
+  // PDF
+  const pdfBtn = document.getElementById('pdf-btn');
+  if (d.pdf_url) {
+    pdfBtn.href = d.pdf_url;
+    pdfBtn.style.display = 'block';
+  } else {
+    pdfBtn.style.display = 'none';
+  }
+
+  document.getElementById('results-panel').style.display = 'block';
+
+  // Color the polygon on map
+  drawnItems.eachLayer(layer => {
+    const mapColor = color === 'GREEN' ? '#22c55e' : color === 'YELLOW' ? '#f59e0b' : '#ef4444';
+    layer.setStyle({ color: mapColor, fillColor: mapColor, fillOpacity: 0.18 });
+  });
+
+  setMapStatus(
+    color === 'GREEN'  ? 'COMPLIANT — No deforestation detected' :
+    color === 'YELLOW' ? 'MEDIUM RISK — Enhanced due diligence required' :
+                         'NON-COMPLIANT — Deforestation detected post-2020',
+    !!(color === 'GREEN'), !!(color === 'RED')
+  );
+}
+
+function showError(msg) {
+  document.getElementById('error-text').textContent = 'Analysis failed: ' + msg;
+  document.getElementById('error-panel').style.display = 'block';
+}
+
+function clearAll() {
+  drawnItems.clearLayers();
+  currentPolygonCoords = null;
+  updateCoordsDisplay();
+  document.getElementById('results-panel').style.display = 'none';
+  document.getElementById('error-panel').style.display  = 'none';
+  document.getElementById('progress-wrap').style.display = 'none';
+  document.getElementById('coord-textarea').value = '';
+  document.getElementById('pdf-btn').style.display = 'none';
+  setMapStatus('Draw a polygon to begin', false, false);
+}
+
+// ── Council tabs ──────────────────────────────────────────────────────────────
+function switchTab(btn, tabId) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+</script>
+</body>
+</html>

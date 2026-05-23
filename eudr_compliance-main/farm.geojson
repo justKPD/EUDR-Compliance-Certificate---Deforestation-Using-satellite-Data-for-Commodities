@@ -1,0 +1,18 @@
+{
+  "type": "Feature",
+  "properties": {
+    "name": "Sample Cocoa Farm — Côte d'Ivoire",
+    "commodity": "cocoa",
+    "country": "Côte d'Ivoire"
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [[
+      [-5.567, 7.234],
+      [-5.567, 7.244],
+      [-5.557, 7.244],
+      [-5.557, 7.234],
+      [-5.567, 7.234]
+    ]]
+  }
+}

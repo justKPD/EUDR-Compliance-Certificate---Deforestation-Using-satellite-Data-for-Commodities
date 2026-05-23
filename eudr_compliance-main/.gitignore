@@ -1,0 +1,104 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+MANIFEST
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# ── Testing & coverage ────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.coveragerc
+nosetests.xml
+test-results/
+
+# ── Type checkers & linters ───────────────────────────────────────────────────
+.mypy_cache/
+.dmypy.json
+.ruff_cache/
+.pyright/
+
+# ── Secrets & credentials ─────────────────────────────────────────────────────
+# NEVER commit credentials — GEE service account keys, API tokens, etc.
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+*.key
+*service_account*.json
+*credentials*.json
+*secret*.json
+gee_key.json
+gee_credentials.json
+# Google Application Default Credentials (earthengine authenticate)
+application_default_credentials.json
+
+# ── Google Earth Engine ───────────────────────────────────────────────────────
+# GEE cached auth tokens written by earthengine-api
+.config/earthengine/
+~/.config/earthengine/
+
+# ── Generated reports (PDF Due Diligence Statements) ─────────────────────────
+# Reports are generated at runtime and should not be committed
+reports/*.pdf
+reports/*.png
+# Keep the reports/ directory itself
+!reports/.gitkeep
+
+# ── Generated visualisations (evaluation outputs) ────────────────────────────
+static/testcase_*.png
+static/*.png
+# Keep the static/ directory and index.html
+!static/index.html
+!static/.gitkeep
+
+# ── Evaluation artefacts ──────────────────────────────────────────────────────
+evaluation_results.json
+temp/
+
+# ── Model weights & large binaries ────────────────────────────────────────────
+# Prithvi-100M weights are downloaded at runtime from HuggingFace — do not commit
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.gguf
+*.onnx
+# HuggingFace cache
+.cache/huggingface/
+
+# ── IDEs & editors ────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Jupyter ───────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/

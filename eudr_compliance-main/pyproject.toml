@@ -1,0 +1,71 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "eudr-compliance"
+version = "1.0.0"
+description = "Osapiens Deforestation Intelligence – automated EUDR compliance verification using multimodal satellite analysis"
+requires-python = ">=3.9"
+dependencies = [
+    # Geospatial
+    "earthengine-api>=0.1.390",
+    "rasterio>=1.3",
+    "geopandas>=0.14",
+    "shapely>=2.0",
+    "folium>=0.15",
+    # Numerics / image processing
+    "numpy>=1.26",
+    "opencv-python-headless>=4.9",
+    "pillow>=10.0",
+    "pandas>=2.0",
+    # Deep learning
+    "torch>=2.2",
+    "torchvision>=0.17",
+    "transformers>=4.40",
+    "accelerate>=0.27",
+    "bitsandbytes>=0.41",
+    "peft>=0.10",
+    "einops>=0.7",
+    "timm>=0.9",
+    # Config / validation
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "python-dotenv>=1.0",
+    # API
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.29",
+    "python-multipart>=0.0.9",
+    # PDF
+    "reportlab>=4.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "httpx>=0.27",
+    "ruff>=0.4",
+    "mypy>=1.9",
+]
+
+[project.scripts]
+eudr = "eudr.cli:main"
+eudr-api = "api.main:run"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/eudr", "api"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.mypy]
+python_version = "3.10"
+strict = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["src"]
