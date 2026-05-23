@@ -1,5 +1,5 @@
-# Osapiens Deforestation Intelligence System
-### EUDR Compliance Verification · TUM.ai × Osapiens Makeathon
+#  Deforestation Intelligence System
+### EUDR Compliance Verification · 
 
 > **"From satellite coordinates to compliance PDF in under 90 seconds."**
 
