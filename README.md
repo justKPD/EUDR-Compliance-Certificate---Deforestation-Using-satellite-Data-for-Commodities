@@ -1,6 +1,12 @@
 #  Deforestation Intelligence System
 ### EUDR Compliance Verification · 
 
+## 🌍 [Live demo → eudr-compliance-ui.vercel.app](https://eudr-compliance-ui.vercel.app)
+
+> Open the link, click **▶ Run EUDR Analysis** (a sample cocoa farm in Côte d'Ivoire loads automatically), or draw your own plot.
+> The hosted version runs the full officer UI in **demo mode**: results are illustrative and labelled as such. Real satellite analysis (Sentinel-2, Hansen GFC, WRI drivers, Prithvi-100M, Gemma) runs when the FastAPI backend is started locally with your own GEE and HF credentials.
+
+
 > **"From satellite coordinates to compliance PDF in under 90 seconds."**
 
 ---
